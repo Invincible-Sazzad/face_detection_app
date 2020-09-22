@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tracking.js Experiment</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <!-- Popper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+
+
+    <style>
+        body {
+            background: #F5F6F8;
+        }
+
+        .container {
+            background: white;
+            margin: 30px auto;
+            max-width: 960px;
+            padding: 20px;
+            -webkit-border-radius: 20px;
+            -moz-border-radius: 20px;
+            border-radius: 20px;
+        }
+
+        .container h1 {
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-size: 20px;
+            color: #383838;
+        }
+
+        .container hr {
+            border-top: 1px dashed #F5F6F8;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .container img {
+            max-width: 100%;
+            display: inline-block;
+            -webkit-box-shadow: 0 1px 2px 0 rgba(50, 50, 50, 0.5);
+            -moz-box-shadow: 0 1px 2px 0 rgba(50, 50, 50, 0.5);
+            box-shadow: 0 1px 2px 0 rgba(50, 50, 50, 0.5);
+        }
+
+        .container .rect {
+            position: absolute;
+            border: 3px solid #1ed36f;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="container">
+    <h1>Face detection experiment with
+        <a href="http://trackingjs.com" target="_parent">tracking.js</a></h1>
+    <hr />
+
+    <div class="form-group">
+      <input type="file" class="form-control-file" name="file">
+    </div>
+
+    <img src="" id="face-detection-image" />
+    <button id="trackbtn" class="btn btn-primary" type="button">Detect</button>
+    <button id="validatebtn" class="btn btn-success" type="button">Validate</button>
+</div>
+
+<script src="build/tracking-min.js"></script>
+<script src="build/data/face-min.js"></script>
+<script src="build/data/eye-min.js"></script>
+<script src="build/data/mouth-min.js"></script>
+
+<script>
+    var detectbtn = document.getElementById("trackbtn");
+
+    window.onload = function(){
+        detectbtn.disabled = true;
+    };
+
+    var reader;
+    $(function () {
+        $(":file").change(function () {
+            if (this.files && this.files[0]) {
+                reader = new FileReader();
+                reader.onload = imageIsLoaded;
+
+                reader.readAsDataURL(this.files[0]);
+                //getImageDimension();
+            }
+        });
+
+
+    });
+
+    function imageIsLoaded(e) {
+        $('#face-detection-image').attr('src', e.target.result);
+    };
+
+
+    var validatebtn = document.getElementById("validatebtn");
+    validatebtn.addEventListener('click', function(){
+        getImageDimension();
+    });
+
+
+    function getImageDimension(){
+        var image = document.getElementById("face-detection-image");
+
+        var imageurl = image.src;
+
+        var block = imageurl.split(";");
+        // Get the content type of the image
+        var contentType = block[0].split(":")[1];// In this case "image/gif"
+        // get the real base64 content of the file
+        var realData = block[1].split(",")[1];// In this case "R0lGODlhPQBEAPeoAJosM...."
+
+        // Convert it to a blob to upload
+        var blob = b64toBlob(realData, contentType);
+
+        var imagesize = blob.size;
+        var imagesizekb = imagesize / 1024;
+        // get upto two digits after the decimal point
+        var normimagesizekb = imagesizekb.toFixed(2);
+
+        var imgwidth = image.width;
+        var imgheight = image.height;
+
+        var url = "";
+
+        if((imgwidth == 100 && imgheight == 100) || (imgwidth == 200 && imgheight == 200)){
+
+            if(normimagesizekb <= 6){
+                alert("Image validation successful!");
+
+                detectbtn.disabled = false;
+
+                (function () {
+                    'use strict';
+
+                    var container = document.getElementById('container');
+                    var img = document.getElementById('face-detection-image');
+
+                    var drawRect = function (x, y, w, h) {
+                        var rect = document.createElement('div');
+                        rect.classList.add('rect');
+                        rect.style.width = w + 'px';
+                        rect.style.height = h + 'px';
+                        rect.style.left = (img.offsetLeft + x) + 'px';
+                        rect.style.top = (img.offsetTop + y) + 'px';
+
+                        container.appendChild(rect);
+                    };
+
+                    detectbtn.onclick = function () {
+                      console.time('Face detection');
+                      try{
+                          var tracker = new tracking.ObjectTracker(['face', 'eye', 'mouth']);
+                          tracker.setStepSize(0.8);
+
+
+                          // To stop the tracking
+                          //tracker.stop();
+                          //To run it again
+                          //tracker.run();
+
+                          var i = 0;
+                          tracker.on('track', function (event) {
+                            console.log("Event data length: " + event.data.length);
+                            if(event.data.length <4){
+                            //image.src = "";
+                              alert("Face can not be detected! Please upload a clear image.");
+                              console.log("Detection failed!");
+                            }else{
+                                event.data.forEach(function (rect) {
+                                  drawRect(rect.x, rect.y, rect.width, rect.height);
+                                  console.log(rect.x + "  " + rect.y + "  " + rect.width + "  " + rect.height + "\n");
+                                });
+                                console.timeEnd('Face detection');
+                                alert("Face is detected successfully!");
+                                console.log("Detection successful!");
+                            }
+                          });
+
+                          tracking.track('#face-detection-image', tracker);
+                      }catch(err){
+                          console.log(err);
+                      }
+
+                    };
+                  })();
+            }else{
+                alert("Image size should not be greater than 6KB.");
+                image.src = "";
+            }
+
+        }else{
+            image.src = "";
+            //reader.readAsDataURL(null);
+            alert("This is not a valid image. Please, upload 100X100 or 200X200 image and image size should be less than 6KB" + "\nTry another one?");
+        }
+
+
+    }
+
+    // Decode the base64 encoded image data
+    function b64toBlob(b64Data, contentType, sliceSize) {
+        contentType = contentType || '';
+        sliceSize = sliceSize || 512;
+
+        var byteCharacters = atob(b64Data);
+        var byteArrays = [];
+
+        for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+            var byteNumbers = new Array(slice.length);
+            for (var i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+
+            var byteArray = new Uint8Array(byteNumbers);
+
+            byteArrays.push(byteArray);
+        }
+
+      var blob = new Blob(byteArrays, {type: contentType});
+      return blob;
+  }
+</script>
+</body>
+</html>
